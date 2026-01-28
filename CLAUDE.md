@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-One Portfolio is a React Native portfolio app built with Expo, TypeScript, and Expo Router for file-based navigation. The app follows functional programming patterns with styled-components for styling and supports dark mode.
+One Portfolio is a React Native portfolio app built with Expo, TypeScript, and Expo Router for file-based navigation. The app follows functional programming patterns with StyleSheet for styling and supports dark mode.
 
 ## Development Commands
 
@@ -42,11 +42,28 @@ The app is wrapped in this provider order (outermost to innermost):
 - Theme colors: background, surface, text, textSecondary, primary, border
 
 ### Styling Approach
-- Use **styled-components** for all component styling (see components/ui/styled-components.tsx)
-- Access theme colors via `useTheme()` hook
+- Use **StyleSheet.create()** from React Native for all component styling
+- **Co-locate styles** with components in the same file (styles at bottom)
+- Access theme colors via `useTheme()` hook and apply dynamically
 - Avoid hardcoded colors or inline styles
+- ESLint will automatically detect unused styles with `react-native/no-unused-styles`
 - Use Flexbox for layouts
 - For safe areas, wrap components with SafeAreaView from react-native-safe-area-context
+
+#### Style Organization Pattern
+```typescript
+// Component definition
+function MyComponent() {
+  const { colors } = useTheme();
+  return <View style={[styles.container, { backgroundColor: colors.surface }]}>...</View>
+}
+
+// Styles at bottom of file
+const styles = StyleSheet.create({
+  container: { padding: 16 },
+  // ... other styles
+});
+```
 
 ## Code Style Conventions
 
@@ -89,9 +106,9 @@ The app is wrapped in this provider order (outermost to innermost):
 
 - **expo** ~51.0.0 - React Native framework
 - **expo-router** ~3.5.0 - File-based routing
-- **styled-components** ^6.1.8 - Component styling
 - **react-native-safe-area-context** 4.10.1 - Safe area management
 - **TypeScript** ~5.3.3 with strict mode
+- **eslint-plugin-react-native** - Detects unused styles and enforces best practices
 
 ## Important Notes
 
