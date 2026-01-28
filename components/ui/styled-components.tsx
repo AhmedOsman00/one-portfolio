@@ -1,10 +1,6 @@
 import React from "react";
-import { View, Text } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { useTheme } from "../../contexts/theme-context";
-
-interface StyledContainerProps {
-  theme: ReturnType<typeof useTheme>;
-}
 
 export function StyledContainer({
   children,
@@ -17,12 +13,7 @@ export function StyledContainer({
   return (
     <View
       testID={testID}
-      style={{
-        padding: 16,
-        backgroundColor: colors.surface,
-        borderRadius: 8,
-        marginBottom: 16,
-      }}
+      style={[styles.container, { backgroundColor: colors.surface }]}
     >
       {children}
     </View>
@@ -32,31 +23,33 @@ export function StyledContainer({
 export function StyledTitle({ children }: { children: React.ReactNode }) {
   const { colors } = useTheme();
   return (
-    <Text
-      style={{
-        fontSize: 24,
-        fontWeight: "bold",
-        color: colors.text,
-        marginBottom: 8,
-      }}
-    >
-      {children}
-    </Text>
+    <Text style={[styles.title, { color: colors.text }]}>{children}</Text>
   );
 }
 
 export function StyledText({ children }: { children: React.ReactNode }) {
   const { colors } = useTheme();
   return (
-    <Text
-      style={{
-        fontSize: 16,
-        color: colors.textSecondary,
-        lineHeight: 24,
-      }}
-    >
+    <Text style={[styles.text, { color: colors.textSecondary }]}>
       {children}
     </Text>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  text: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
+});
 

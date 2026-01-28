@@ -1,5 +1,5 @@
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ScrollView, View, Text } from "react-native";
+import { ScrollView, StyleSheet } from "react-native";
 import { useTheme } from "../../contexts/theme-context";
 import { StyledContainer, StyledTitle, StyledText } from "../../components/ui";
 
@@ -8,14 +8,14 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: colors.background }}
+      style={[styles.container, { backgroundColor: colors.background }]}
       edges={["top", "left", "right"]}
     >
       <ScrollView
-        contentContainerStyle={{
-          padding: 16,
-          backgroundColor: colors.background,
-        }}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { backgroundColor: colors.background },
+        ]}
       >
         <StyledContainer>
           <StyledTitle>Welcome</StyledTitle>
@@ -28,4 +28,13 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+  },
+});
 

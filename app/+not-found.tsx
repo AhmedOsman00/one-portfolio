@@ -21,7 +21,7 @@ export default function NotFoundScreen() {
         }}
       >
         <Text style={{ fontSize: 20, fontWeight: "bold", color: colors.text }}>
-          This screen doesn't exist.
+          This screen doesn&apos;t exist.
         </Text>
         <Link
           href="/"

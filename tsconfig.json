@@ -4,7 +4,7 @@
     "strict": true,
     "esModuleInterop": true,
     "jsx": "react-native",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "target": "esnext",
@@ -12,6 +12,11 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "isolatedModules": true,
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
     "types": [
       "jest",
       "@testing-library/react-native"
@@ -19,7 +24,8 @@
   },
   "include": [
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.tsx",
+    "localization/i18n.ts"
   ],
   "exclude": [
     "node_modules"
