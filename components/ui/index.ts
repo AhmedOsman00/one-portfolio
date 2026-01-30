@@ -3,4 +3,4 @@ export {
   StyledTitle,
   StyledText,
   StyledButton,
-} from "./styled-components";
+} from "./themed-components";

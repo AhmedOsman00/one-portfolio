@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { useTheme } from "../../contexts/theme-context";
+import { useTheme } from "@/contexts/theme-context";
 
 export default function TabsLayout() {
   const { colors } = useTheme();
@@ -33,4 +33,3 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
-

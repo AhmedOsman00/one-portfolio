@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, Dimensions } from "react-native";
 import { useTheme } from "@/contexts/theme-context";
 import OnboardingFooter from "./components/footer";
 import OnboardingContainer from "./components/container";
-import assets from "@/models/assets";
+import { assets } from "@/models/assets";
 import LineChart from "@/components/line-chart";
 
 export default function PortfolioTab() {
@@ -60,11 +60,14 @@ export default function PortfolioTab() {
                 style={[
                   styles.assetCardChange,
                   {
-                    color: item.change >= 0 ? colors.success : colors.error,
+                    color:
+                      item.changePercentage >= 0
+                        ? colors.success
+                        : colors.error,
                   },
                 ]}
               >
-                {item.change}%
+                {item.changePercentage}%
               </Text>
             </View>
           ))}

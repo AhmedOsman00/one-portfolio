@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { useTheme } from "@/contexts/theme-context";
 import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
 import { useState } from "react";

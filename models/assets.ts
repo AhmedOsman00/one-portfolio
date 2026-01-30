@@ -2,20 +2,26 @@ interface Asset {
   id: string;
   symbol: string;
   name: string;
-  value: string;
-  change: number;
+  shares: number;
+  units: string;
+  value: number;
+  changeAmount: number;
+  changePercentage: number;
   bgColor: string;
   foregroundColor: string;
   type: "listed" | "unlisted";
 }
 
-const assets: Asset[] = [
+export const assets: Asset[] = [
   {
     id: "BTC",
     symbol: "₿",
     name: "Bitcoin",
-    value: "$64.2k",
-    change: 3.2,
+    shares: 10,
+    units: "BTC",
+    value: 64200,
+    changeAmount: 3200,
+    changePercentage: 3.2,
     bgColor: "#4A3026",
     foregroundColor: "#FA7316",
     type: "listed",
@@ -24,8 +30,11 @@ const assets: Asset[] = [
     id: "AAPL",
     symbol: "iOS",
     name: "Apple",
-    value: "$189.4",
-    change: 0.8,
+    shares: 15,
+    units: "shares",
+    value: 189.45,
+    changeAmount: 1.25,
+    changePercentage: 0.8,
     bgColor: "#243353",
     foregroundColor: "#3B82F6",
     type: "listed",
@@ -34,8 +43,11 @@ const assets: Asset[] = [
     id: "GOLD",
     symbol: "$",
     name: "Gold",
-    value: "$2,341",
-    change: -0.2,
+    value: 2341,
+    shares: 10,
+    units: "oz",
+    changeAmount: -4.5,
+    changePercentage: -0.2,
     bgColor: "#473D24",
     foregroundColor: "#EAB308",
     type: "listed",
@@ -44,12 +56,15 @@ const assets: Asset[] = [
     id: "RE",
     symbol: "🏢",
     name: "Real Estate",
-    value: "$12,000",
-    change: 1.5,
+    value: 12000,
+    shares: 1,
+    units: "property",
+    changeAmount: 180,
+    changePercentage: 1.5,
     bgColor: "#2A3A2E",
     foregroundColor: "#10B981",
     type: "unlisted",
   },
 ];
 
-export default assets;
+export default Asset;

@@ -2,7 +2,8 @@ import { View, Text, StyleSheet } from "react-native";
 import { useTheme } from "@/contexts/theme-context";
 import OnboardingFooter from "./components/footer";
 import OnboardingContainer from "./components/container";
-import assets from "../../models/assets";
+import { assets } from "../../models/assets";
+import { formatCurrency } from "@/utils/formatCurrency";
 
 export default function TrackAllTab() {
   const { colors } = useTheme();
@@ -72,7 +73,9 @@ export default function TrackAllTab() {
                   </View>
                   <Text style={styles.assetName}>{asset.name}</Text>
                 </View>
-                <Text style={styles.assetValue}>{asset.value}</Text>
+                <Text style={styles.assetValue}>
+                  {formatCurrency(asset.value)}
+                </Text>
               </View>
             ))}
           </View>
