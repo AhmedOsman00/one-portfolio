@@ -24,6 +24,7 @@ export default function RootLayout() {
               <Stack.Screen name="index" />
               <Stack.Screen name="onboarding/index" options={{ headerShown: false }} />
               <Stack.Screen name="currency-selection" />
+              <Stack.Screen name="add-asset" options={{ presentation: "modal" }} />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="+not-found" />
             </Stack>
