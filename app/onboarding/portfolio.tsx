@@ -1,275 +1,158 @@
 import { View, Text, StyleSheet, Dimensions } from "react-native";
 import { useTheme } from "@/contexts/theme-context";
-import Svg, { Path } from "react-native-svg";
-
-const { width } = Dimensions.get("window");
-
-interface Asset {
-  id: string;
-  symbol: string;
-  name: string;
-  value: string;
-  change: string;
-  bgColor: string;
-}
-
-const assets: Asset[] = [
-  {
-    id: "BTC",
-    symbol: "₿",
-    name: "Bitcoin",
-    value: "$64.2k",
-    change: "+3.2%",
-    bgColor: "#8B4513",
-  },
-  {
-    id: "AAPL",
-    symbol: "iOS",
-    name: "Apple",
-    value: "$189.4",
-    change: "+0.8%",
-    bgColor: "#2C4A6B",
-  },
-  {
-    id: "GOLD",
-    symbol: "$",
-    name: "Gold",
-    value: "$2,341",
-    change: "-0.2%",
-    bgColor: "#6B6B2C",
-  },
-];
+import OnboardingFooter from "./components/footer";
+import OnboardingContainer from "./components/container";
+import assets from "@/models/assets";
+import LineChart from "@/components/line-chart";
 
 export default function PortfolioTab() {
   const { colors } = useTheme();
 
   return (
-    <View style={styles.slide}>
-      <View>
-        {/* Portfolio Card */}
-        <View
-          style={[styles.portfolioCard, { backgroundColor: colors.surface }]}
-        >
-          <Text
-            style={[styles.portfolioLabel, { color: colors.textSecondary }]}
-          >
-            TOTAL VALUE
-          </Text>
-          <Text style={[styles.portfolioValue, { color: colors.text }]}>
-            $42,850.50
-          </Text>
-
-          <View style={styles.liveMarketRow}>
-            <View style={styles.liveIndicator} />
-            <Text
-              style={[styles.liveMarketText, { color: colors.textSecondary }]}
-            >
-              Live Market
-            </Text>
-            <Text style={styles.percentagePositive}>+2.4%</Text>
-          </View>
-
-          {/* Simple Chart */}
-          <View style={styles.chartContainer}>
-            <Svg width="100%" height="120" viewBox="0 0 300 120">
-              <Path
-                d="
-                    M 10 90
-                    L 30 85
-                    L 50 70
-                    L 70 75
-                    L 90 55
-                    L 110 60
-                    L 130 45
-                    L 150 50
-                    L 170 40
-                    L 190 35
-                    L 210 50
-                    L 230 45
-                    L 250 30
-                    L 270 35
-                    L 290 25
-                    L 290 110
-                    L 10 110
-                    Z
-                "
-                fill="rgba(65, 105, 225, 0.1)"
-              />
-
-              <Path
-                d="
-                    M 10 90
-                    L 30 85
-                    L 50 70
-                    L 70 75
-                    L 90 55
-                    L 110 60
-                    L 130 45
-                    L 150 50
-                    L 170 40
-                    L 190 35
-                    L 210 50
-                    L 230 45
-                    L 250 30
-                    L 270 35
-                    L 290 25
-                "
-                stroke="#4169E1"
-                strokeWidth={3}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
-          </View>
+    <OnboardingContainer>
+      {/* Main Card */}
+      <View style={styles.totalValueCard}>
+        <Text style={styles.totalValueLabel}>TOTAL VALUE</Text>
+        <Text style={styles.totalValueAmount}>$42,850.50</Text>
+        <View style={styles.liveIndicator}>
+          <Text style={styles.liveText}>Live Market</Text>
+          <Text style={styles.liveChange}>+2.4%</Text>
         </View>
 
-        {/* Asset Cards */}
-        <View style={styles.assetsRow}>
-          {assets.map((item) => (
-            <View
-              key={item.id}
-              style={[styles.assetCard, { backgroundColor: colors.surface }]}
-            >
+        {/* Line Chart */}
+        <LineChart
+          data={[
+            { timestamp: 1704067200000, price: 150.25 },
+            { timestamp: 1704153600000, price: 152.8 },
+            { timestamp: 1704240000000, price: 151.5 },
+            { timestamp: 1704326400000, price: 155.3 },
+            { timestamp: 1704412800000, price: 158.9 },
+            { timestamp: 1704499200000, price: 157.2 },
+            { timestamp: 1704585600000, price: 162.45 },
+          ]}
+        />
+      </View>
+
+      {/* Asset Cards Grid */}
+      <View style={styles.assetCardsGrid}>
+        {assets
+          .filter((item) => item.type === "listed")
+          .map((item) => (
+            <View key={item.id} style={styles.assetCard}>
               <View
-                style={[styles.assetIcon, { backgroundColor: item.bgColor }]}
+                style={[
+                  styles.assetCardIcon,
+                  { backgroundColor: item.bgColor },
+                ]}
               >
-                <Text style={styles.assetIconText}>{item.symbol}</Text>
+                <Text
+                  style={[
+                    styles.assetCardEmoji,
+                    { color: item.foregroundColor },
+                  ]}
+                >
+                  {item.symbol}
+                </Text>
               </View>
-              <Text style={[styles.assetSymbol, { color: colors.text }]}>
-                {item.id}
-              </Text>
+              <Text style={styles.assetCardSymbol}>{item.id}</Text>
+              <Text style={styles.assetCardPrice}>{item.value}</Text>
               <Text
-                style={[styles.assetValue, { color: colors.textSecondary }]}
+                style={[
+                  styles.assetCardChange,
+                  {
+                    color: item.change >= 0 ? colors.success : colors.error,
+                  },
+                ]}
               >
-                {item.value}
-              </Text>
-              <Text
-                style={
-                  item.change.startsWith("+")
-                    ? styles.percentagePositive
-                    : styles.percentageNegative
-                }
-              >
-                {item.change}
+                {item.change}%
               </Text>
             </View>
           ))}
-        </View>
       </View>
 
-      <View>
-        <Text style={[styles.bottomTitle, { color: colors.text }]}>
-          Live Prices for Stocks, Gold & Crypto
-        </Text>
-        <Text
-          style={[styles.bottomDescription, { color: colors.textSecondary }]}
-        >
-          Real-time data for all your holdings across global markets
-        </Text>
-      </View>
-    </View>
+      <OnboardingFooter
+        title="Live Prices for Stocks, Gold & Crypto"
+        description="Real-time data for all your holdings across global markets"
+      />
+    </OnboardingContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  slide: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    width,
-  },
-  portfolioCard: {
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 20,
+  totalValueCard: {
+    width: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 20,
+    padding: 24,
   },
-  portfolioLabel: {
+  totalValueLabel: {
+    color: "#97A1C4",
     fontSize: 12,
-    fontWeight: "600",
-    letterSpacing: 1.2,
+    fontWeight: "500",
+    marginBottom: 8,
   },
-  portfolioValue: {
-    fontSize: 42,
-    fontWeight: "bold",
+  totalValueAmount: {
+    color: "#FFFFFF",
+    fontSize: 36,
+    fontWeight: "700",
+    marginBottom: 8,
   },
-  liveMarketRow: {
+  liveIndicator: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginBottom: 20,
+    marginBottom: 12,
   },
-  liveIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#00D66B",
-  },
-  liveMarketText: {
+  liveText: {
+    color: "#97A1C4",
     fontSize: 14,
   },
-  percentagePositive: {
+  liveChange: {
+    color: "#0BDA62",
     fontSize: 14,
-    color: "#00D66B",
-    fontWeight: "600",
+    fontWeight: "500",
   },
-  percentageNegative: {
-    fontSize: 14,
-    color: "#FF3B30",
-    fontWeight: "600",
-  },
-  chartContainer: {
-    height: 100,
-    marginTop: 8,
-  },
-  assetsRow: {
+  assetCardsGrid: {
+    width: "100%",
     flexDirection: "row",
     gap: 12,
-    marginBottom: 20,
-    width: "100%",
   },
   assetCard: {
     flex: 1,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: "center",
-    gap: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-  },
-  assetIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    borderColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 16,
+    padding: 12,
     alignItems: "center",
+  },
+  assetCardIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  assetCardEmoji: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  assetCardSymbol: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
     marginBottom: 4,
   },
-  assetIconText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "600",
+  assetCardPrice: {
+    color: "#97A1C4",
+    fontSize: 12,
+    marginBottom: 2,
   },
-  assetSymbol: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  assetValue: {
-    fontSize: 14,
-  },
-  bottomTitle: {
-    fontSize: 26,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 12,
-    lineHeight: 34,
-  },
-  bottomDescription: {
-    fontSize: 15,
-    textAlign: "center",
-    lineHeight: 22,
+  assetCardChange: {
+    fontSize: 10,
+    fontWeight: "700",
   },
 });

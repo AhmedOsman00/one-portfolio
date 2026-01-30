@@ -1,2 +1,6 @@
-export { StyledContainer, StyledTitle, StyledText } from "./styled-components";
-
+export {
+  StyledContainer,
+  StyledTitle,
+  StyledText,
+  StyledButton,
+} from "./styled-components";

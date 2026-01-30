@@ -13,6 +13,7 @@ import { useTheme } from "../../contexts/theme-context";
 import PortfolioTab from "./portfolio";
 import PremiumInsightsTab from "./premium";
 import TrackAllTab from "./track-all";
+import { StyledButton } from "@/components/ui";
 
 interface OnboardingSlide {
   id: string;
@@ -120,14 +121,10 @@ export default function OnboardingScreen() {
           ))}
         </View>
 
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: colors.primary }]}
-          onPress={handleNext}
-        >
-          <Text style={styles.buttonText}>
-            {currentIndex === slides.length - 1 ? "Get Started" : "Next"}
-          </Text>
-        </TouchableOpacity>
+        <StyledButton
+          title={currentIndex === slides.length - 1 ? "Get Started" : "Next"}
+          action={handleNext}
+        />
       </View>
     </SafeAreaView>
   );
@@ -150,6 +147,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
   },
+  flatList: {
+    flex: 1,
+  },
   footer: {
     paddingHorizontal: 20,
     paddingBottom: 16,
@@ -164,16 +164,5 @@ const styles = StyleSheet.create({
   dot: {
     height: 8,
     borderRadius: 4,
-  },
-  button: {
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "600",
   },
 });
