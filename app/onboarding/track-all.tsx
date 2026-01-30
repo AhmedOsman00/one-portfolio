@@ -2,7 +2,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { useTheme } from "@/contexts/theme-context";
 import OnboardingFooter from "./components/footer";
 import OnboardingContainer from "./components/container";
-import { assets } from "../../models/assets";
+import { assets } from "../../models/asset";
 import { formatCurrency } from "@/utils/formatCurrency";
 
 export default function TrackAllTab() {

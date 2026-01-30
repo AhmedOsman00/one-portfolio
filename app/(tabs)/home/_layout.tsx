@@ -8,7 +8,7 @@ import {
   PremiumFeatureCard,
   HoldingsList,
 } from "./components";
-import { assets } from "@/models/assets";
+import { assets } from "@/models/asset";
 
 export default function HomeScreen() {
   const { colors } = useTheme();

@@ -1,5 +1,8 @@
+import AssetType, { STOCK_ETF, GOLD, REAL_ESTATE, CRYPTO } from "./asset-type";
+
 interface Asset {
   id: string;
+  assetType: AssetType;
   symbol: string;
   name: string;
   shares: number;
@@ -15,6 +18,7 @@ interface Asset {
 export const assets: Asset[] = [
   {
     id: "BTC",
+    assetType: CRYPTO,
     symbol: "₿",
     name: "Bitcoin",
     shares: 10,
@@ -28,6 +32,7 @@ export const assets: Asset[] = [
   },
   {
     id: "AAPL",
+    assetType: STOCK_ETF,
     symbol: "iOS",
     name: "Apple",
     shares: 15,
@@ -41,6 +46,7 @@ export const assets: Asset[] = [
   },
   {
     id: "GOLD",
+    assetType: GOLD,
     symbol: "$",
     name: "Gold",
     value: 2341,
@@ -54,6 +60,7 @@ export const assets: Asset[] = [
   },
   {
     id: "RE",
+    assetType: REAL_ESTATE,
     symbol: "🏢",
     name: "Real Estate",
     value: 12000,

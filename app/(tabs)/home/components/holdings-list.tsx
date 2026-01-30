@@ -8,7 +8,7 @@ import {
 import { useTheme } from "@/contexts/theme-context";
 import { useUserPreferences } from "@/contexts/user-preferences-context";
 import { formatCurrency } from "@/utils/formatCurrency";
-import Asset from "@/models/assets";
+import Asset from "@/models/asset";
 
 interface HoldingsListProps {
   holdings: Asset[];
