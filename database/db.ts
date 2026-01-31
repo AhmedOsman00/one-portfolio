@@ -4,14 +4,14 @@
  */
 
 import * as SQLite from "expo-sqlite";
-import { runMigrations } from "./migrations";
+import { ALL_TABLES } from "./schema";
 
 const DATABASE_NAME = "one_portfolio.db";
 
 let database: SQLite.SQLiteDatabase | null = null;
 
 /**
- * Opens the database connection and runs any pending migrations.
+ * Opens the database connection and creates tables.
  * Call this once on app startup.
  */
 export async function initializeDatabase(): Promise<SQLite.SQLiteDatabase> {
@@ -25,8 +25,10 @@ export async function initializeDatabase(): Promise<SQLite.SQLiteDatabase> {
   // Enable foreign keys
   await database.execAsync("PRAGMA foreign_keys = ON;");
 
-  // Run migrations
-  await runMigrations(database);
+  // Create tables
+  for (const createStatement of ALL_TABLES) {
+    await database.execAsync(createStatement);
+  }
 
   console.log("[Database] Database initialized.");
   return database;

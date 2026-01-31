@@ -10,9 +10,6 @@ export {
   resetDatabase,
 } from "./db";
 
-export { runMigrations, getTargetVersion } from "./migrations";
-
-export { SCHEMA_VERSION } from "./schema";
 
 // Models
 export type {
@@ -45,3 +42,21 @@ export {
   calculateGainLoss,
   generateAssetId,
 } from "./helpers/asset-helpers";
+
+// Preferences repository
+export type { PreferenceKey } from "./repositories/preferences-repository";
+export {
+  getPreference,
+  setPreference,
+  deletePreference,
+  getAllPreferences,
+  deleteAllPreferences,
+  getHasCompletedOnboarding,
+  setHasCompletedOnboarding,
+  getBaseCurrency,
+  setBaseCurrencyPref,
+  getNotificationsEnabled,
+  setNotificationsEnabled,
+  getAutoRefreshEnabled,
+  setAutoRefreshEnabled,
+} from "./repositories/preferences-repository";

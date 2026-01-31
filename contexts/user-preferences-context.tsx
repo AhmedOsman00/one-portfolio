@@ -1,5 +1,11 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { useDatabase } from "./database-context";
+import {
+  getHasCompletedOnboarding,
+  setHasCompletedOnboarding as setHasCompletedOnboardingDb,
+  getBaseCurrency,
+  setBaseCurrencyPref,
+} from "@/database/repositories/preferences-repository";
 
 interface UserPreferences {
   hasCompletedOnboarding: boolean;
@@ -12,13 +18,16 @@ interface UserPreferencesContextValue extends UserPreferences {
   isLoading: boolean;
 }
 
-const STORAGE_KEY = '@one_portfolio_preferences';
+const UserPreferencesContext = createContext<
+  UserPreferencesContextValue | undefined
+>(undefined);
 
-const UserPreferencesContext = createContext<UserPreferencesContextValue | undefined>(
-  undefined
-);
-
-export function UserPreferencesProvider({ children }: { children: React.ReactNode }) {
+export function UserPreferencesProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { isReady: isDbReady } = useDatabase();
   const [isLoading, setIsLoading] = useState(true);
   const [preferences, setPreferences] = useState<UserPreferences>({
     hasCompletedOnboarding: false,
@@ -26,38 +35,47 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
   });
 
   useEffect(() => {
-    loadPreferences();
-  }, []);
+    if (!isDbReady) {
+      return;
+    }
 
-  async function loadPreferences() {
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as UserPreferences;
-        setPreferences(parsed);
+    async function loadPreferences() {
+      try {
+        const onboarding = await getHasCompletedOnboarding();
+        const currency = await getBaseCurrency();
+
+        setPreferences({
+          hasCompletedOnboarding: onboarding,
+          baseCurrency: currency,
+        });
+      } catch (error) {
+        console.error("[UserPreferences] Failed to load preferences:", error);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Failed to load user preferences:', error);
-    } finally {
-      setIsLoading(false);
     }
-  }
 
-  async function savePreferences(newPreferences: UserPreferences) {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newPreferences));
-      setPreferences(newPreferences);
-    } catch (error) {
-      console.error('Failed to save user preferences:', error);
-    }
-  }
+    loadPreferences();
+  }, [isDbReady]);
 
   async function setHasCompletedOnboarding(value: boolean) {
-    await savePreferences({ ...preferences, hasCompletedOnboarding: value });
+    try {
+      await setHasCompletedOnboardingDb(value);
+      setPreferences((prev) => ({ ...prev, hasCompletedOnboarding: value }));
+    } catch (error) {
+      console.error("[UserPreferences] Failed to set onboarding:", error);
+      throw error;
+    }
   }
 
   async function setBaseCurrency(currency: string) {
-    await savePreferences({ ...preferences, baseCurrency: currency });
+    try {
+      await setBaseCurrencyPref(currency);
+      setPreferences((prev) => ({ ...prev, baseCurrency: currency }));
+    } catch (error) {
+      console.error("[UserPreferences] Failed to set currency:", error);
+      throw error;
+    }
   }
 
   return (
@@ -77,7 +95,9 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
 export function useUserPreferences() {
   const context = useContext(UserPreferencesContext);
   if (!context) {
-    throw new Error('useUserPreferences must be used within UserPreferencesProvider');
+    throw new Error(
+      "useUserPreferences must be used within UserPreferencesProvider"
+    );
   }
   return context;
 }

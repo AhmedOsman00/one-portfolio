@@ -3,8 +3,6 @@
  * Each table is defined with its CREATE statement.
  */
 
-export const SCHEMA_VERSION = 1;
-
 /**
  * Assets table - stores both listed (stocks, crypto) and custom assets
  */
@@ -48,20 +46,9 @@ export const CREATE_USER_PREFERENCES_TABLE = `
 `;
 
 /**
- * Schema migrations table - tracks applied migrations
- */
-export const CREATE_MIGRATIONS_TABLE = `
-  CREATE TABLE IF NOT EXISTS schema_migrations (
-    version INTEGER PRIMARY KEY NOT NULL,
-    applied_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-`;
-
-/**
  * All table creation statements in order
  */
 export const ALL_TABLES = [
-  CREATE_MIGRATIONS_TABLE,
   CREATE_ASSETS_TABLE,
   CREATE_PRICE_CACHE_TABLE,
   CREATE_USER_PREFERENCES_TABLE,
