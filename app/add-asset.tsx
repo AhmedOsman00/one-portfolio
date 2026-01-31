@@ -6,64 +6,133 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/contexts/theme-context";
+import { useAssets } from "@/contexts/assets-context";
 import { assetTypes } from "@/models/asset-type";
+import type AssetType from "@/models/asset-type";
+import type { AssetCategoryId } from "@/database/models/asset";
+
+// Categories that are "listed" (have live prices)
+const LISTED_CATEGORIES: AssetCategoryId[] = ["stock-etf", "crypto", "gold"];
 
 export default function AddAssetScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("");
+  const { addListedAsset, addCustomAsset } = useAssets();
 
+  // Step: "select" or "form"
+  const [step, setStep] = useState<"select" | "form">("select");
+  const [selectedType, setSelectedType] = useState<AssetType | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const filteredAssetTypes = assetTypes.filter(
-    (asset) =>
-      asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      asset.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Form fields for listed assets
+  const [ticker, setTicker] = useState("");
+  const [name, setName] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [purchasePrice, setPurchasePrice] = useState("");
+
+  // Form fields for custom assets
+  const [customName, setCustomName] = useState("");
+  const [customValue, setCustomValue] = useState("");
+  const [maturityDate, setMaturityDate] = useState("");
+
+  const isListedCategory = selectedType
+    ? LISTED_CATEGORIES.includes(selectedType.id as AssetCategoryId)
+    : false;
 
   function handleClose() {
     router.back();
   }
 
-  function handleAssetTypePress(assetTypeId: string) {
-    // TODO: Navigate to asset creation form for the selected type
-    console.log("Selected asset type:", assetTypeId);
+  function handleBack() {
+    setStep("select");
+    setSelectedType(null);
+    resetForm();
   }
 
-  return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      edges={["top", "left", "right", "bottom"]}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={handleClose}
-          accessibilityLabel="Close"
-          accessibilityRole="button"
-        >
-          <Text style={[styles.headerButtonText, { color: colors.text }]}>
-            ✕
-          </Text>
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Add an asset
-        </Text>
-        <View style={styles.headerSpacer} />
-      </View>
+  function resetForm() {
+    setTicker("");
+    setName("");
+    setQuantity("");
+    setPurchasePrice("");
+    setCustomName("");
+    setCustomValue("");
+    setMaturityDate("");
+  }
 
+  function handleAssetTypePress(assetType: AssetType) {
+    setSelectedType(assetType);
+    setStep("form");
+  }
+
+  async function handleSubmit() {
+    if (!selectedType) return;
+
+    try {
+      setIsSubmitting(true);
+
+      if (isListedCategory) {
+        // Validate listed asset fields
+        if (!ticker.trim()) {
+          Alert.alert("Error", "Please enter a ticker symbol");
+          return;
+        }
+        if (!quantity.trim() || parseFloat(quantity) <= 0) {
+          Alert.alert("Error", "Please enter a valid quantity");
+          return;
+        }
+
+        await addListedAsset({
+          ticker: ticker.trim().toUpperCase(),
+          name: name.trim() || ticker.trim().toUpperCase(),
+          quantity: parseFloat(quantity),
+          purchase_price: purchasePrice ? parseFloat(purchasePrice) : undefined,
+          current_price: purchasePrice ? parseFloat(purchasePrice) : 0, // Will be updated by price API later
+          asset_category: selectedType.id as AssetCategoryId,
+        });
+      } else {
+        // Validate custom asset fields
+        if (!customName.trim()) {
+          Alert.alert("Error", "Please enter an asset name");
+          return;
+        }
+        if (!customValue.trim() || parseFloat(customValue) <= 0) {
+          Alert.alert("Error", "Please enter a valid value");
+          return;
+        }
+
+        await addCustomAsset({
+          name: customName.trim(),
+          current_price: parseFloat(customValue),
+          asset_category: selectedType.id as AssetCategoryId,
+          maturity_date: maturityDate.trim() || undefined,
+        });
+      }
+
+      // Success - go back
+      router.back();
+    } catch (error) {
+      console.error("Failed to add asset:", error);
+      Alert.alert("Error", "Failed to add asset. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function renderTypeSelection() {
+    return (
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-
-        {/* Asset Types Grid */}
         <View style={styles.gridContainer}>
-          {filteredAssetTypes.map((assetType) => (
+          {assetTypes.map((assetType) => (
             <TouchableOpacity
               key={assetType.id}
               style={[
@@ -73,7 +142,7 @@ export default function AddAssetScreen() {
                   borderColor: colors.border,
                 },
               ]}
-              onPress={() => handleAssetTypePress(assetType.id)}
+              onPress={() => handleAssetTypePress(assetType)}
               activeOpacity={0.7}
               accessibilityLabel={`${assetType.name}: ${assetType.description}`}
               accessibilityRole="button"
@@ -102,12 +171,292 @@ export default function AddAssetScreen() {
           ))}
         </View>
       </ScrollView>
+    );
+  }
+
+  function renderListedAssetForm() {
+    const placeholders: Record<string, { ticker: string; name: string }> = {
+      "stock-etf": { ticker: "AAPL", name: "Apple Inc." },
+      crypto: { ticker: "BTC", name: "Bitcoin" },
+      gold: { ticker: "GOLD", name: "Gold" },
+    };
+    const placeholder = placeholders[selectedType?.id ?? ""] ?? {
+      ticker: "TICKER",
+      name: "Asset Name",
+    };
+
+    return (
+      <ScrollView
+        contentContainerStyle={styles.formContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Selected Type Badge */}
+        <View style={[styles.selectedBadge, { backgroundColor: colors.surface }]}>
+          <Text style={styles.selectedIcon}>{selectedType?.icon}</Text>
+          <Text style={[styles.selectedName, { color: colors.text }]}>
+            {selectedType?.name}
+          </Text>
+        </View>
+
+        {/* Ticker */}
+        <View style={styles.fieldContainer}>
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+            Ticker Symbol *
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
+            placeholder={placeholder.ticker}
+            placeholderTextColor={colors.textSecondary}
+            value={ticker}
+            onChangeText={setTicker}
+            autoCapitalize="characters"
+            autoCorrect={false}
+          />
+        </View>
+
+        {/* Name */}
+        <View style={styles.fieldContainer}>
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+            Name (optional)
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
+            placeholder={placeholder.name}
+            placeholderTextColor={colors.textSecondary}
+            value={name}
+            onChangeText={setName}
+          />
+        </View>
+
+        {/* Quantity */}
+        <View style={styles.fieldContainer}>
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+            Quantity *
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
+            placeholder="10"
+            placeholderTextColor={colors.textSecondary}
+            value={quantity}
+            onChangeText={setQuantity}
+            keyboardType="decimal-pad"
+          />
+        </View>
+
+        {/* Purchase Price */}
+        <View style={styles.fieldContainer}>
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+            Purchase Price (optional)
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
+            placeholder="150.00"
+            placeholderTextColor={colors.textSecondary}
+            value={purchasePrice}
+            onChangeText={setPurchasePrice}
+            keyboardType="decimal-pad"
+          />
+          <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
+            Used to calculate your gain/loss
+          </Text>
+        </View>
+
+        {/* Submit Button */}
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            { backgroundColor: colors.primary },
+            isSubmitting && styles.submitButtonDisabled,
+          ]}
+          onPress={handleSubmit}
+          disabled={isSubmitting}
+        >
+          <Text style={styles.submitButtonText}>
+            {isSubmitting ? "Adding..." : "Add to Portfolio"}
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  }
+
+  function renderCustomAssetForm() {
+    const showMaturityDate =
+      selectedType?.id === "fixed-income" || selectedType?.id === "cash";
+
+    return (
+      <ScrollView
+        contentContainerStyle={styles.formContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Selected Type Badge */}
+        <View style={[styles.selectedBadge, { backgroundColor: colors.surface }]}>
+          <Text style={styles.selectedIcon}>{selectedType?.icon}</Text>
+          <Text style={[styles.selectedName, { color: colors.text }]}>
+            {selectedType?.name}
+          </Text>
+        </View>
+
+        {/* Name */}
+        <View style={styles.fieldContainer}>
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+            Asset Name *
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
+            placeholder="e.g., Miami Rental Property"
+            placeholderTextColor={colors.textSecondary}
+            value={customName}
+            onChangeText={setCustomName}
+          />
+        </View>
+
+        {/* Value */}
+        <View style={styles.fieldContainer}>
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+            Current Value *
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
+            placeholder="250000"
+            placeholderTextColor={colors.textSecondary}
+            value={customValue}
+            onChangeText={setCustomValue}
+            keyboardType="decimal-pad"
+          />
+          <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
+            Enter the total current value of this asset
+          </Text>
+        </View>
+
+        {/* Maturity Date (for bonds/fixed income) */}
+        {showMaturityDate && (
+          <View style={styles.fieldContainer}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+              Maturity Date (optional)
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  color: colors.text,
+                },
+              ]}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={colors.textSecondary}
+              value={maturityDate}
+              onChangeText={setMaturityDate}
+            />
+            <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
+              Get notified when this asset matures
+            </Text>
+          </View>
+        )}
+
+        {/* Submit Button */}
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            { backgroundColor: colors.primary },
+            isSubmitting && styles.submitButtonDisabled,
+          ]}
+          onPress={handleSubmit}
+          disabled={isSubmitting}
+        >
+          <Text style={styles.submitButtonText}>
+            {isSubmitting ? "Adding..." : "Add to Portfolio"}
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  }
+
+  return (
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={["top", "left", "right", "bottom"]}
+    >
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={step === "form" ? handleBack : handleClose}
+            accessibilityLabel={step === "form" ? "Back" : "Close"}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.headerButtonText, { color: colors.text }]}>
+              {step === "form" ? "←" : "✕"}
+            </Text>
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            {step === "select" ? "Add an asset" : "Add details"}
+          </Text>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        {/* Content */}
+        {step === "select" && renderTypeSelection()}
+        {step === "form" && isListedCategory && renderListedAssetForm()}
+        {step === "form" && !isListedCategory && renderCustomAssetForm()}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  keyboardView: {
     flex: 1,
   },
   header: {
@@ -134,56 +483,13 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 40,
   },
-  infoButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  infoButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 32,
   },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 16,
-  },
-  searchIcon: {
-    fontSize: 16,
-    marginRight: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    padding: 0,
-  },
-  paginationContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 24,
-  },
-  paginationDot: {
-    width: 24,
-    height: 6,
-    borderRadius: 3,
-  },
-  paginationDotInactive: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  formContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 32,
   },
   gridContainer: {
     flexDirection: "row",
@@ -217,40 +523,54 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
-  ctaBanner: {
-    marginTop: 24,
-    borderRadius: 16,
-    padding: 24,
+  selectedBadge: {
+    flexDirection: "row",
     alignItems: "center",
-    position: "relative",
-    overflow: "hidden",
+    alignSelf: "flex-start",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginBottom: 24,
+    gap: 8,
   },
-  ctaDecorCircle: {
-    position: "absolute",
-    top: 16,
-    left: 24,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(30, 63, 174, 0.15)",
+  selectedIcon: {
+    fontSize: 20,
   },
-  ctaText: {
-    fontSize: 18,
+  selectedName: {
+    fontSize: 16,
     fontWeight: "600",
-    textAlign: "center",
-    lineHeight: 26,
   },
-  ctaDecorTriangle: {
-    position: "absolute",
-    bottom: 16,
-    right: 24,
-    width: 0,
-    height: 0,
-    borderLeftWidth: 24,
-    borderRightWidth: 24,
-    borderBottomWidth: 40,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    borderBottomColor: "rgba(30, 63, 174, 0.1)",
+  fieldContainer: {
+    marginBottom: 20,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+  },
+  fieldHint: {
+    fontSize: 12,
+    marginTop: 6,
+  },
+  submitButton: {
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginTop: 12,
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
+  },
+  submitButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

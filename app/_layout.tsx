@@ -5,6 +5,7 @@ import { useColorScheme } from "react-native";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { UserPreferencesProvider } from "@/contexts/user-preferences-context";
 import { DatabaseProvider } from "@/contexts/database-context";
+import { AssetsProvider } from "@/contexts/assets-context";
 import { ErrorBoundary } from "@/components/error-boundary";
 
 export default function RootLayout() {
@@ -16,7 +17,8 @@ export default function RootLayout() {
         <DatabaseProvider>
           <ThemeProvider>
             <UserPreferencesProvider>
-              <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+              <AssetsProvider>
+                <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
               <Stack
                 screenOptions={{
                   headerShown: false,
@@ -36,6 +38,7 @@ export default function RootLayout() {
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="+not-found" />
               </Stack>
+              </AssetsProvider>
             </UserPreferencesProvider>
           </ThemeProvider>
         </DatabaseProvider>

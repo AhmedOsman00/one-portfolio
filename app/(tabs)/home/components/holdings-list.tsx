@@ -1,17 +1,16 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useTheme } from "@/contexts/theme-context";
 import { useUserPreferences } from "@/contexts/user-preferences-context";
 import { formatCurrency } from "@/utils/formatCurrency";
-import Asset from "@/models/asset";
+import type { DbAsset } from "@/database/models/asset";
+import {
+  getAssetUnits,
+  getAssetTypeByCategory,
+  calculateAssetValue,
+} from "@/database/helpers/asset-helpers";
 
 interface HoldingsListProps {
-  holdings: Asset[];
+  holdings: DbAsset[];
 }
 
 export default function HoldingsList({ holdings }: HoldingsListProps) {
@@ -23,9 +22,13 @@ export default function HoldingsList({ holdings }: HoldingsListProps) {
     console.log("See all holdings pressed");
   }
 
-  function handleHoldingPress(symbol: string) {
+  function handleHoldingPress(id: string) {
     // TODO: Navigate to holding detail
-    console.log(`Holding ${symbol} pressed`);
+    console.log(`Holding ${id} pressed`);
+  }
+
+  if (holdings.length === 0) {
+    return null;
   }
 
   return (
@@ -40,32 +43,30 @@ export default function HoldingsList({ holdings }: HoldingsListProps) {
       </View>
 
       <View style={styles.list}>
-        {holdings.map((holding, index) => {
-          const isPositive = holding.changeAmount >= 0;
+        {holdings.map((holding) => {
+          const assetType = getAssetTypeByCategory(holding.asset_category);
+          const units = getAssetUnits(holding);
+          const value = calculateAssetValue(holding);
+          const icon = assetType?.icon ?? "📦";
+          const iconColor = assetType?.iconColor ?? colors.primary;
+          const bgColor = assetType?.bgColor ?? colors.surface;
+
           return (
             <TouchableOpacity
-              key={index}
+              key={holding.id}
               style={[
                 styles.holdingItem,
                 { backgroundColor: colors.surfaceSecondary },
               ]}
-              onPress={() => handleHoldingPress(holding.symbol)}
+              onPress={() => handleHoldingPress(holding.id)}
               activeOpacity={0.7}
             >
               <View style={styles.leftSection}>
                 <View
-                  style={[
-                    styles.symbolBadge,
-                    { backgroundColor: holding.bgColor + "20" },
-                  ]}
+                  style={[styles.symbolBadge, { backgroundColor: bgColor }]}
                 >
-                  <Text
-                    style={[
-                      styles.symbolText,
-                      { color: holding.foregroundColor },
-                    ]}
-                  >
-                    {holding.symbol}
+                  <Text style={[styles.symbolText, { color: iconColor }]}>
+                    {icon}
                   </Text>
                 </View>
                 <View>
@@ -75,29 +76,25 @@ export default function HoldingsList({ holdings }: HoldingsListProps) {
                   <Text
                     style={[styles.shares, { color: colors.textSecondary }]}
                   >
-                    {holding.shares} {holding.units}
+                    {holding.type === "custom"
+                      ? "Custom"
+                      : `${holding.quantity} ${units}`}
                   </Text>
                 </View>
               </View>
 
               <View style={styles.rightSection}>
                 <Text style={[styles.value, { color: colors.text }]}>
-                  {formatCurrency(holding.value, baseCurrency ?? "USD")}
+                  {formatCurrency(value, baseCurrency ?? "USD")}
                 </Text>
-                <Text
-                  style={[
-                    styles.change,
-                    { color: isPositive ? colors.success : colors.error },
-                  ]}
-                >
-                  {isPositive ? "+" : ""}
-                  {formatCurrency(
-                    Math.abs(holding.changeAmount),
-                    baseCurrency ?? "USD"
-                  )}{" "}
-                  ({isPositive ? "+" : ""}
-                  {holding.changePercentage.toFixed(2)}%)
-                </Text>
+                {/* Price change will be shown once we have price cache */}
+                {holding.type === "listed" && holding.ticker && (
+                  <Text
+                    style={[styles.ticker, { color: colors.textSecondary }]}
+                  >
+                    {holding.ticker}
+                  </Text>
+                )}
               </View>
             </TouchableOpacity>
           );
@@ -150,8 +147,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   symbolText: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 20,
   },
   name: {
     fontSize: 16,
@@ -169,8 +165,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 2,
   },
-  change: {
+  ticker: {
     fontSize: 12,
-    fontWeight: "600",
   },
 });
