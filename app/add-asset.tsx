@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -20,6 +21,46 @@ import type { AssetCategoryId } from "@/database/models/asset";
 
 // Categories that are "listed" (have live prices)
 const LISTED_CATEGORIES: AssetCategoryId[] = ["stock-etf", "crypto", "gold"];
+
+// Validation helpers
+function isValidNumber(value: string): boolean {
+  if (!value.trim()) return false;
+  const num = parseFloat(value);
+  return !isNaN(num) && num > 0;
+}
+
+function parseNumber(value: string): number {
+  return parseFloat(value.trim());
+}
+
+function filterNumericInput(text: string): string {
+  // Allow digits, one decimal point, and nothing else
+  let result = "";
+  let hasDecimal = false;
+  for (const char of text) {
+    if (char >= "0" && char <= "9") {
+      result += char;
+    } else if (char === "." && !hasDecimal) {
+      result += char;
+      hasDecimal = true;
+    }
+  }
+  return result;
+}
+
+function filterTickerInput(text: string): string {
+  // Allow only letters and numbers, uppercase
+  return text.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+}
+
+interface FieldError {
+  ticker?: string;
+  quantity?: string;
+  purchasePrice?: string;
+  customName?: string;
+  customValue?: string;
+  maturityDate?: string;
+}
 
 export default function AddAssetScreen() {
   const { colors, isDark } = useTheme();
@@ -40,11 +81,58 @@ export default function AddAssetScreen() {
   // Form fields for custom assets
   const [customName, setCustomName] = useState("");
   const [customValue, setCustomValue] = useState("");
-  const [maturityDate, setMaturityDate] = useState("");
+  const [maturityDate, setMaturityDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Track which fields have been touched (for showing errors)
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const isListedCategory = selectedType
     ? LISTED_CATEGORIES.includes(selectedType.id as AssetCategoryId)
     : false;
+
+  // Real-time validation
+  const errors = useMemo<FieldError>(() => {
+    const errs: FieldError = {};
+
+    if (isListedCategory) {
+      if (touched.ticker && !ticker.trim()) {
+        errs.ticker = "Ticker symbol is required";
+      }
+      if (touched.quantity) {
+        if (!quantity.trim()) {
+          errs.quantity = "Quantity is required";
+        } else if (!isValidNumber(quantity)) {
+          errs.quantity = "Enter a valid number greater than 0";
+        }
+      }
+      if (touched.purchasePrice && purchasePrice.trim() && !isValidNumber(purchasePrice)) {
+        errs.purchasePrice = "Enter a valid price";
+      }
+    } else {
+      if (touched.customName && !customName.trim()) {
+        errs.customName = "Asset name is required";
+      }
+      if (touched.customValue) {
+        if (!customValue.trim()) {
+          errs.customValue = "Value is required";
+        } else if (!isValidNumber(customValue)) {
+          errs.customValue = "Enter a valid number greater than 0";
+        }
+      }
+    }
+
+    return errs;
+  }, [isListedCategory, ticker, quantity, purchasePrice, customName, customValue, touched]);
+
+  // Check if form is valid
+  const isFormValid = useMemo(() => {
+    if (isListedCategory) {
+      return ticker.trim().length > 0 && isValidNumber(quantity);
+    } else {
+      return customName.trim().length > 0 && isValidNumber(customValue);
+    }
+  }, [isListedCategory, ticker, quantity, customName, customValue]);
 
   function handleClose() {
     router.back();
@@ -63,7 +151,8 @@ export default function AddAssetScreen() {
     setPurchasePrice("");
     setCustomName("");
     setCustomValue("");
-    setMaturityDate("");
+    setMaturityDate(null);
+    setTouched({});
   }
 
   function handleAssetTypePress(assetType: AssetType) {
@@ -71,51 +160,73 @@ export default function AddAssetScreen() {
     setStep("form");
   }
 
+  function markTouched(field: string) {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  }
+
+  // Input handlers with filtering
+  function handleTickerChange(text: string) {
+    setTicker(filterTickerInput(text));
+  }
+
+  function handleQuantityChange(text: string) {
+    setQuantity(filterNumericInput(text));
+  }
+
+  function handlePurchasePriceChange(text: string) {
+    setPurchasePrice(filterNumericInput(text));
+  }
+
+  function handleCustomValueChange(text: string) {
+    setCustomValue(filterNumericInput(text));
+  }
+
+  // Date picker handlers
+  function handleDateSelect(date: Date) {
+    setMaturityDate(date);
+    setShowDatePicker(false);
+  }
+
+  function formatDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
   async function handleSubmit() {
-    if (!selectedType) return;
+    if (!selectedType || !isFormValid) return;
 
     try {
       setIsSubmitting(true);
 
       if (isListedCategory) {
-        // Validate listed asset fields
-        if (!ticker.trim()) {
-          Alert.alert("Error", "Please enter a ticker symbol");
-          return;
-        }
-        if (!quantity.trim() || parseFloat(quantity) <= 0) {
-          Alert.alert("Error", "Please enter a valid quantity");
-          return;
-        }
+        const tickerValue = ticker.trim().toUpperCase();
+        const quantityValue = parseNumber(quantity);
+        const purchasePriceValue = purchasePrice.trim()
+          ? parseNumber(purchasePrice)
+          : undefined;
 
         await addListedAsset({
-          ticker: ticker.trim().toUpperCase(),
-          name: name.trim() || ticker.trim().toUpperCase(),
-          quantity: parseFloat(quantity),
-          purchase_price: purchasePrice ? parseFloat(purchasePrice) : undefined,
-          current_price: purchasePrice ? parseFloat(purchasePrice) : 0, // Will be updated by price API later
+          ticker: tickerValue,
+          name: name.trim() || tickerValue,
+          quantity: quantityValue,
+          purchase_price: purchasePriceValue,
+          current_price: purchasePriceValue ?? 0,
           asset_category: selectedType.id as AssetCategoryId,
         });
       } else {
-        // Validate custom asset fields
-        if (!customName.trim()) {
-          Alert.alert("Error", "Please enter an asset name");
-          return;
-        }
-        if (!customValue.trim() || parseFloat(customValue) <= 0) {
-          Alert.alert("Error", "Please enter a valid value");
-          return;
-        }
+        const nameValue = customName.trim();
+        const valueNum = parseNumber(customValue);
 
         await addCustomAsset({
-          name: customName.trim(),
-          current_price: parseFloat(customValue),
+          name: nameValue,
+          current_price: valueNum,
           asset_category: selectedType.id as AssetCategoryId,
-          maturity_date: maturityDate.trim() || undefined,
+          maturity_date: maturityDate ? formatDate(maturityDate) : undefined,
         });
       }
 
-      // Success - go back
       router.back();
     } catch (error) {
       console.error("Failed to add asset:", error);
@@ -209,17 +320,24 @@ export default function AddAssetScreen() {
               styles.input,
               {
                 backgroundColor: colors.surface,
-                borderColor: colors.border,
+                borderColor: errors.ticker ? colors.error : colors.border,
                 color: colors.text,
               },
             ]}
             placeholder={placeholder.ticker}
             placeholderTextColor={colors.textSecondary}
             value={ticker}
-            onChangeText={setTicker}
+            onChangeText={handleTickerChange}
+            onBlur={() => markTouched("ticker")}
             autoCapitalize="characters"
             autoCorrect={false}
+            maxLength={10}
           />
+          {errors.ticker && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.ticker}
+            </Text>
+          )}
         </View>
 
         {/* Name */}
@@ -240,6 +358,7 @@ export default function AddAssetScreen() {
             placeholderTextColor={colors.textSecondary}
             value={name}
             onChangeText={setName}
+            maxLength={100}
           />
         </View>
 
@@ -253,16 +372,23 @@ export default function AddAssetScreen() {
               styles.input,
               {
                 backgroundColor: colors.surface,
-                borderColor: colors.border,
+                borderColor: errors.quantity ? colors.error : colors.border,
                 color: colors.text,
               },
             ]}
             placeholder="10"
             placeholderTextColor={colors.textSecondary}
             value={quantity}
-            onChangeText={setQuantity}
+            onChangeText={handleQuantityChange}
+            onBlur={() => markTouched("quantity")}
             keyboardType="decimal-pad"
+            maxLength={15}
           />
+          {errors.quantity && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.quantity}
+            </Text>
+          )}
         </View>
 
         {/* Purchase Price */}
@@ -275,19 +401,27 @@ export default function AddAssetScreen() {
               styles.input,
               {
                 backgroundColor: colors.surface,
-                borderColor: colors.border,
+                borderColor: errors.purchasePrice ? colors.error : colors.border,
                 color: colors.text,
               },
             ]}
             placeholder="150.00"
             placeholderTextColor={colors.textSecondary}
             value={purchasePrice}
-            onChangeText={setPurchasePrice}
+            onChangeText={handlePurchasePriceChange}
+            onBlur={() => markTouched("purchasePrice")}
             keyboardType="decimal-pad"
+            maxLength={15}
           />
-          <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
-            Used to calculate your gain/loss
-          </Text>
+          {errors.purchasePrice ? (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.purchasePrice}
+            </Text>
+          ) : (
+            <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
+              Used to calculate your gain/loss
+            </Text>
+          )}
         </View>
 
         {/* Submit Button */}
@@ -295,10 +429,10 @@ export default function AddAssetScreen() {
           style={[
             styles.submitButton,
             { backgroundColor: colors.primary },
-            isSubmitting && styles.submitButtonDisabled,
+            (!isFormValid || isSubmitting) && styles.submitButtonDisabled,
           ]}
           onPress={handleSubmit}
-          disabled={isSubmitting}
+          disabled={!isFormValid || isSubmitting}
         >
           <Text style={styles.submitButtonText}>
             {isSubmitting ? "Adding..." : "Add to Portfolio"}
@@ -336,7 +470,7 @@ export default function AddAssetScreen() {
               styles.input,
               {
                 backgroundColor: colors.surface,
-                borderColor: colors.border,
+                borderColor: errors.customName ? colors.error : colors.border,
                 color: colors.text,
               },
             ]}
@@ -344,7 +478,14 @@ export default function AddAssetScreen() {
             placeholderTextColor={colors.textSecondary}
             value={customName}
             onChangeText={setCustomName}
+            onBlur={() => markTouched("customName")}
+            maxLength={100}
           />
+          {errors.customName && (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.customName}
+            </Text>
+          )}
         </View>
 
         {/* Value */}
@@ -357,19 +498,27 @@ export default function AddAssetScreen() {
               styles.input,
               {
                 backgroundColor: colors.surface,
-                borderColor: colors.border,
+                borderColor: errors.customValue ? colors.error : colors.border,
                 color: colors.text,
               },
             ]}
             placeholder="250000"
             placeholderTextColor={colors.textSecondary}
             value={customValue}
-            onChangeText={setCustomValue}
+            onChangeText={handleCustomValueChange}
+            onBlur={() => markTouched("customValue")}
             keyboardType="decimal-pad"
+            maxLength={15}
           />
-          <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
-            Enter the total current value of this asset
-          </Text>
+          {errors.customValue ? (
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {errors.customValue}
+            </Text>
+          ) : (
+            <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
+              Enter the total current value of this asset
+            </Text>
+          )}
         </View>
 
         {/* Maturity Date (for bonds/fixed income) */}
@@ -378,20 +527,29 @@ export default function AddAssetScreen() {
             <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
               Maturity Date (optional)
             </Text>
-            <TextInput
+            <TouchableOpacity
               style={[
                 styles.input,
+                styles.dateInput,
                 {
                   backgroundColor: colors.surface,
                   borderColor: colors.border,
-                  color: colors.text,
                 },
               ]}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.textSecondary}
-              value={maturityDate}
-              onChangeText={setMaturityDate}
-            />
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text
+                style={[
+                  styles.dateText,
+                  { color: maturityDate ? colors.text : colors.textSecondary },
+                ]}
+              >
+                {maturityDate ? formatDate(maturityDate) : "Select date"}
+              </Text>
+              <Text style={[styles.dateIcon, { color: colors.textSecondary }]}>
+                📅
+              </Text>
+            </TouchableOpacity>
             <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
               Get notified when this asset matures
             </Text>
@@ -403,16 +561,154 @@ export default function AddAssetScreen() {
           style={[
             styles.submitButton,
             { backgroundColor: colors.primary },
-            isSubmitting && styles.submitButtonDisabled,
+            (!isFormValid || isSubmitting) && styles.submitButtonDisabled,
           ]}
           onPress={handleSubmit}
-          disabled={isSubmitting}
+          disabled={!isFormValid || isSubmitting}
         >
           <Text style={styles.submitButtonText}>
             {isSubmitting ? "Adding..." : "Add to Portfolio"}
           </Text>
         </TouchableOpacity>
       </ScrollView>
+    );
+  }
+
+  function renderDatePickerModal() {
+    const today = new Date();
+    const years = Array.from({ length: 30 }, (_, i) => today.getFullYear() + i);
+    const months = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December",
+    ];
+
+    const [tempYear, setTempYear] = useState(
+      maturityDate?.getFullYear() ?? today.getFullYear() + 1
+    );
+    const [tempMonth, setTempMonth] = useState(
+      maturityDate?.getMonth() ?? today.getMonth()
+    );
+    const [tempDay, setTempDay] = useState(maturityDate?.getDate() ?? 1);
+
+    const daysInMonth = new Date(tempYear, tempMonth + 1, 0).getDate();
+    const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+    function handleConfirm() {
+      const selected = new Date(tempYear, tempMonth, tempDay);
+      handleDateSelect(selected);
+    }
+
+    return (
+      <Modal visible={showDatePicker} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View
+            style={[styles.modalContent, { backgroundColor: colors.background }]}
+          >
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                <Text style={[styles.modalButton, { color: colors.textSecondary }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Select Date
+              </Text>
+              <TouchableOpacity onPress={handleConfirm}>
+                <Text style={[styles.modalButton, { color: colors.primary }]}>
+                  Done
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.pickerContainer}>
+              {/* Month */}
+              <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
+                {months.map((month, index) => (
+                  <TouchableOpacity
+                    key={month}
+                    style={[
+                      styles.pickerItem,
+                      tempMonth === index && {
+                        backgroundColor: colors.primaryLight,
+                      },
+                    ]}
+                    onPress={() => setTempMonth(index)}
+                  >
+                    <Text
+                      style={[
+                        styles.pickerText,
+                        { color: tempMonth === index ? colors.primary : colors.text },
+                      ]}
+                    >
+                      {month}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Day */}
+              <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
+                {days.map((day) => (
+                  <TouchableOpacity
+                    key={day}
+                    style={[
+                      styles.pickerItem,
+                      tempDay === day && { backgroundColor: colors.primaryLight },
+                    ]}
+                    onPress={() => setTempDay(day)}
+                  >
+                    <Text
+                      style={[
+                        styles.pickerText,
+                        { color: tempDay === day ? colors.primary : colors.text },
+                      ]}
+                    >
+                      {day}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Year */}
+              <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
+                {years.map((year) => (
+                  <TouchableOpacity
+                    key={year}
+                    style={[
+                      styles.pickerItem,
+                      tempYear === year && { backgroundColor: colors.primaryLight },
+                    ]}
+                    onPress={() => setTempYear(year)}
+                  >
+                    <Text
+                      style={[
+                        styles.pickerText,
+                        { color: tempYear === year ? colors.primary : colors.text },
+                      ]}
+                    >
+                      {year}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {maturityDate && (
+              <TouchableOpacity
+                style={styles.clearDateButton}
+                onPress={() => {
+                  setMaturityDate(null);
+                  setShowDatePicker(false);
+                }}
+              >
+                <Text style={[styles.clearDateText, { color: colors.error }]}>
+                  Clear Date
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
     );
   }
 
@@ -448,6 +744,9 @@ export default function AddAssetScreen() {
         {step === "form" && isListedCategory && renderListedAssetForm()}
         {step === "form" && !isListedCategory && renderCustomAssetForm()}
       </KeyboardAvoidingView>
+
+      {/* Date Picker Modal */}
+      {renderDatePickerModal()}
     </SafeAreaView>
   );
 }
@@ -559,6 +858,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 6,
   },
+  errorText: {
+    fontSize: 12,
+    marginTop: 6,
+  },
+  dateInput: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  dateText: {
+    fontSize: 16,
+  },
+  dateIcon: {
+    fontSize: 18,
+  },
   submitButton: {
     borderRadius: 12,
     paddingVertical: 16,
@@ -566,11 +880,67 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   submitButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   submitButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0, 0, 0, 0.1)",
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+  },
+  modalButton: {
+    fontSize: 17,
+    fontWeight: "500",
+  },
+  pickerContainer: {
+    flexDirection: "row",
+    height: 200,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+  },
+  pickerColumn: {
+    flex: 1,
+  },
+  pickerItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginVertical: 2,
+  },
+  pickerText: {
+    fontSize: 16,
+    textAlign: "center",
+  },
+  clearDateButton: {
+    alignItems: "center",
+    paddingVertical: 12,
+    marginTop: 10,
+  },
+  clearDateText: {
+    fontSize: 16,
+    fontWeight: "500",
   },
 });
