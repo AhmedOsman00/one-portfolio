@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "react-native";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { UserPreferencesProvider } from "@/contexts/user-preferences-context";
+import { DatabaseProvider } from "@/contexts/database-context";
 import { ErrorBoundary } from "@/components/error-boundary";
 
 export default function RootLayout() {
@@ -12,24 +13,32 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
-        <ThemeProvider>
-          <UserPreferencesProvider>
-            <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: "transparent" },
-              }}
-            >
-              <Stack.Screen name="index" />
-              <Stack.Screen name="onboarding/index" options={{ headerShown: false }} />
-              <Stack.Screen name="currency-selection" />
-              <Stack.Screen name="add-asset" options={{ presentation: "modal" }} />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="+not-found" />
-            </Stack>
-          </UserPreferencesProvider>
-        </ThemeProvider>
+        <DatabaseProvider>
+          <ThemeProvider>
+            <UserPreferencesProvider>
+              <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: "transparent" },
+                }}
+              >
+                <Stack.Screen name="index" />
+                <Stack.Screen
+                  name="onboarding/index"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen name="currency-selection" />
+                <Stack.Screen
+                  name="add-asset"
+                  options={{ presentation: "modal" }}
+                />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="+not-found" />
+              </Stack>
+            </UserPreferencesProvider>
+          </ThemeProvider>
+        </DatabaseProvider>
       </SafeAreaProvider>
     </ErrorBoundary>
   );
